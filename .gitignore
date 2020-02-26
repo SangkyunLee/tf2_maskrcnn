@@ -1,0 +1,6 @@
+*.pyc
+#ignore following directories
+images/
+logs/
+model_file/
+mrcnn_tf2 (ver1-incomplete)/
