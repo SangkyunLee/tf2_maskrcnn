@@ -20,6 +20,8 @@ class BatchNorm(KL.BatchNormalization):
     so this layer is often frozen (via setting in Config class) and functions
     as linear layer.
     """
+    def __init__(self,  **kwargs):
+        super(BatchNorm, self).__init__(**kwargs)
     def call(self, inputs, training=True):
         """
         Note about training values:
@@ -143,7 +145,7 @@ def resnet_graph(input_image, architecture, stage5=False, train_bn=True):
     outputs = [C1, C2, C3, C4, C5]
     
     return KM.Model(input_image, outputs, name='resnet')
-
+    
 
 
 # input_image = KL.Input(shape=config.IMAGE_SHAPE, name="input_image")

@@ -11,9 +11,6 @@ import tensorflow.keras.layers as KL
 import tensorflow.keras.models as KM
 
 
-# from mrcnn_tf2 import utils
-# from mrcnn_tf2.model_utils import resnet_graph
-from mrcnn_tf2 import model_utils as mutil
 from mrcnn_tf2.resnet import resnet_graph
 
 
@@ -24,8 +21,6 @@ class fpn_kmodel:
     def __init__(self, config):
        
         self.config = config
-        
-
         input_image = KL.Input(shape = tuple(config.IMAGE_SHAPE))
         self.resnet = resnet_graph(input_image, config.BACKBONE,
                                           stage5=True, train_bn=config.TRAIN_BN)

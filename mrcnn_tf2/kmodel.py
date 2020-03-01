@@ -25,12 +25,10 @@ import tensorflow.keras.layers as KL
 import tensorflow.keras.models as KM
 
 from mrcnn_tf2 import utils
-# from mrcnn_tf2.model_loss import *
-from mrcnn_tf2 import model_loss as ML
-#from mrcnn_tf2.model_utils import *
-from mrcnn_tf2 import model_utils as mutil
+
+from mrcnn_tf2 import kmodel_utils as mutil
 from mrcnn_tf2 import data
-from mrcnn_tf2.fpn_model import fpn_model
+from mrcnn_tf2.fpn_kmodel import fpn_kmodel
 
 
 # Requires TensorFlow 2.0+.
@@ -63,9 +61,7 @@ class MaskRCNN():
         self. counter=0
         
         
-    # def build(self,input_shape=None):
-        mode = self.getmode()
-        config = self.get_config()
+    
    
         # Image size must be dividable by 2 multiple times
         h, w = config.IMAGE_SHAPE[:2]
@@ -75,13 +71,12 @@ class MaskRCNN():
                             "For example, use 256, 320, 384, 448, 512, ... etc. ")
 
         # feature pyramidal network model
-        self.fpn = fpn_model( config, name='fpn_model')
+        self.fpn = fpn_kmodel( config)
 
 
         # # RPN Model             
         self.rpn = mutil.RPN(config.RPN_ANCHOR_STRIDE, 
-                             len(config.RPN_ANCHOR_RATIOS),
-                             name = 'rpn_model')
+                             len(config.RPN_ANCHOR_RATIOS))
         
         # Generate proposals
         # Proposals are [batch, N, (y1, x1, y2, x2)] in normalized coordinates
@@ -111,12 +106,7 @@ class MaskRCNN():
                 
         
 
-        # Network Heads        
-        self.fpn_clf = mutil.fpn_classifier(config.POOL_SIZE, config.NUM_CLASSES, name='fpn_classifier')
-        self.fpn_mask = mutil.fpn_mask(config.MASK_POOL_SIZE, config.NUM_CLASSES, name ='fpn_mask')
-        
-        
-        self.mrcnn = self.build()
+    
         
         # # Add multi-GPU support.
         # if config.GPU_COUNT > 1:
@@ -166,15 +156,20 @@ class MaskRCNN():
         #     input_anchors = inputs[2]
             
         # print('fpn_start')    
+        self.fpn= self.fpn.build(input_image)
         out_fpn = self.fpn(input_image)
         # print('fpn_end')  
         rpn_feature_maps = out_fpn
         mrcnn_feature_maps = out_fpn[:-1]
                 
-          
+        
+        
+        rpn_inputs = KL.Input(shape = [ None, None, config.TOP_DOWN_PYRAMID_SIZE])
+        
+        self.rpn_ = self.rpn.build(rpn_inputs)
         layer_outputs = []  # list of lists
-        for p in rpn_feature_maps:
-            layer_outputs.append(self.rpn(p))
+        for p in rpn_feature_maps:           
+            layer_outputs.append(self.rpn_(p))
             
         output_names = ["rpn_class_logits", "rpn_class", "rpn_bbox"]
         outputs = list(zip(*layer_outputs))
@@ -198,12 +193,11 @@ class MaskRCNN():
             gt_boxes = mutil.norm_boxes_graph(
                 input_gt_boxes, input_image.shape[1:3])
             
-            # print('DTL_start')
-            input_batch = [rpn_rois, input_gt_class_ids, gt_boxes, input_gt_masks]             
+            
+            input_batch = [rpn_rois, input_gt_class_ids, gt_boxes, input_gt_masks] 
             rois, target_class_ids, target_bbox, target_mask =self.DTL(input_batch)
             self.target_rois = rois
-            # print('DTL_end')
-            
+                        
         else:
             rois = rpn_rois
         
@@ -212,10 +206,16 @@ class MaskRCNN():
             
     
         inputs_fpn =[rois, input_image_meta, *mrcnn_feature_maps]    
-        # class, bbox        
-        mrcnn_class_logits, mrcnn_class, mrcnn_bbox = self.fpn_clf(inputs_fpn)
+        # class, bbox    
+        mrcnn_class_logits, mrcnn_class, mrcnn_bbox = \
+        mutil.fpn_classifier_graph(rois, mrcnn_feature_maps, input_image_meta, config.POOL_SIZE, config.NUM_CLASSES)
         
-        if not mode == 'training':
+        
+        
+        if mode == 'training':
+            mrcnn_mask = \
+                mutil.build_fpn_mask_graph(rois, mrcnn_feature_maps, input_image_meta, config.POOL_SIZE, config.NUM_CLASSES)
+        else:
             # Detections
             # output is [batch, num_detections, (y1, x1, y2, x2, class_id, score)] in
             # normalized coordinates            
@@ -225,27 +225,29 @@ class MaskRCNN():
             # Create masks for detections
             detection_boxes = KL.Lambda(lambda x: x[..., :4])(detections)
             
-            inputs_fpn =[detection_boxes, input_image_meta, *mrcnn_feature_maps]  
+            # inputs_fpn =[detection_boxes, input_image_meta, *mrcnn_feature_maps]  
+            mrcnn_mask = \
+                mutil.build_fpn_mask_graph(detection_boxes, mrcnn_feature_maps, input_image_meta, config.POOL_SIZE, config.NUM_CLASSES)
         
-        # mask
-        mrcnn_mask = self.fpn_mask(inputs_fpn)
         
-        # if mode == 'inference':
-        #     input_dl = [ rpn_rois, mrcnn_class, mrcnn_bbox, input_image_meta]
-        #     detections = self.DL(input_dl)
+            
+        
+        # # if mode == 'inference':
+        # #     input_dl = [ rpn_rois, mrcnn_class, mrcnn_bbox, input_image_meta]
+        # #     detections = self.DL(input_dl)
     
     
         if mode == 'training':
             inputs = [input_image, input_image_meta, input_gt_class_ids,
                       input_gt_boxes, input_gt_masks]
             outputs = [rpn_class_logits, rpn_class, rpn_bbox, mrcnn_class_logits, mrcnn_class, mrcnn_bbox,
-                       target_class_ids, target_bbox, target_mask, mrcnn_mask]
+                        target_class_ids, target_bbox, target_mask, mrcnn_mask]
             
           
         else:
             inputs = [input_image, input_image_meta]
             outputs = [detections, mrcnn_class, mrcnn_bbox, 
-                       mrcnn_mask, rpn_rois, rpn_class, rpn_bbox]
+                        mrcnn_mask, rpn_rois, rpn_class, rpn_bbox]
         
         return KM.Model(inputs, outputs)
             
