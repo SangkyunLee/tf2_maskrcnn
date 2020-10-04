@@ -77,8 +77,7 @@ class MaskRCNN(KM.Model):
             
             
         self.rpn = mutil.RPN(config.RPN_ANCHOR_STRIDE, 
-                             len(config.RPN_ANCHOR_RATIOS)
-                             )
+                             len(config.RPN_ANCHOR_RATIOS) )
             
         
        
@@ -111,8 +110,8 @@ class MaskRCNN(KM.Model):
         
 
         # Network Heads        
-        self.fpn_clf = mutil.fpn_classifier(config.POOL_SIZE, config.NUM_CLASSES, name='fpn_classifier')
-        self.fpn_mask = mutil.fpn_mask(config.MASK_POOL_SIZE, config.NUM_CLASSES, name ='fpn_mask')
+        self.fpn_clf = mutil.fpn_classifier(config.POOL_SIZE, config.NUM_CLASSES, train_bn=config.TRAIN_BN, name='fpn_classifier')
+        self.fpn_mask = mutil.fpn_mask(config.MASK_POOL_SIZE, config.NUM_CLASSES, train_bn=config.TRAIN_BN, name ='fpn_mask')
         
         
 
@@ -134,41 +133,7 @@ class MaskRCNN(KM.Model):
                            config.MINI_MASK_SHAPE[1], None)]
         return inputs_shape
         
-        # config = self.get_config()
-        # mode = self.getmode()
-        # input_image = KL.Input(
-        #     shape=config.IMAGE_SHAPE, name="input_image")
-        
-        # input_image_meta = KL.Input(shape=[config.IMAGE_META_SIZE],
-        #                             name="input_image_meta")       
-
-        
-        # if mode == 'training':            
-        #     input_gt_class_ids = KL.Input(
-        #         shape=[None], name="input_gt_class_ids", dtype=tf.int32)
-        #     input_gt_boxes = KL.Input(
-        #         shape=[None, 4], name="input_gt_boxes", dtype=tf.float32)
-        #     # 3. GT Masks (zero padded)
-        #     # [batch, height, width, MAX_GT_INSTANCES]
-        #     if config.USE_MINI_MASK:
-        #         input_gt_masks = KL.Input(
-        #             shape=[config.MINI_MASK_SHAPE[0],
-        #                    config.MINI_MASK_SHAPE[1], None],
-        #             name="input_gt_masks", dtype=bool)
-        #     else:
-        #         input_gt_masks = KL.Input(
-        #             shape=[config.IMAGE_SHAPE[0], config.IMAGE_SHAPE[1], None],
-        #             name="input_gt_masks", dtype=bool)
-                
-        #     inputs = [input_image, input_image_meta, input_gt_class_ids,
-        #               input_gt_boxes, input_gt_masks]
-        # else:
-        #     inputs = [input_image, input_image_meta]
-            
-        # return inputs
-            
-    
-        
+   
       
         
         
@@ -210,20 +175,23 @@ class MaskRCNN(KM.Model):
         rpn_feature_maps = out_fpn
         mrcnn_feature_maps = out_fpn[:-1]
                 
-        # print('rpn_start')  
+
         layer_outputs = []  # list of lists
         for p in rpn_feature_maps:
             layer_outputs.append(self.rpn(p))
         output_names = ["rpn_class_logits", "rpn_class", "rpn_bbox"]
         outputs = list(zip(*layer_outputs))    
-        # print('rpn_end')
+
         
         outputs = [KL.Concatenate(axis=1, name=n)(list(o))                   
-                   for o, n in zip(outputs, output_names)]
+                    for o, n in zip(outputs, output_names)]
         
         rpn_class_logits, rpn_class, rpn_bbox = outputs
         
+        # p=rpn_feature_maps[0]
+        # rpn_class_logits, rpn_class, rpn_bbox = self.rpn(p)
                
+        ###########################################3
         anchors = self.get_anchors(config.IMAGE_SHAPE)
         anchors = np.broadcast_to(anchors, (config.BATCH_SIZE,) + anchors.shape)
     
@@ -277,9 +245,9 @@ class MaskRCNN(KM.Model):
         if mode == 'training':
             
             outputs = [rpn_class_logits, rpn_class, rpn_bbox, mrcnn_class_logits, mrcnn_class, mrcnn_bbox,
-                       target_class_ids, target_bbox, target_mask, mrcnn_mask]
+                        target_class_ids, target_bbox, target_mask, mrcnn_mask]
             
-          
+            # outputs = [rpn_class_logits, rpn_class, rpn_bbox]
         else:
             outputs = [detections, mrcnn_class, mrcnn_bbox, 
                        mrcnn_mask, rpn_rois, rpn_class, rpn_bbox]
@@ -463,13 +431,13 @@ class MaskRCNN(KM.Model):
         if not hasattr(self, "_anchor_cache"):
             self._anchor_cache = {}
         if not tuple(image_shape) in self._anchor_cache:
-            # Generate Anchors
+            # Generate Anchors for loop along RPN_ANCHOR_SCALES
             a = utils.generate_pyramid_anchors(
-                config.RPN_ANCHOR_SCALES,
-                config.RPN_ANCHOR_RATIOS,
-                backbone_shapes,
-                config.BACKBONE_STRIDES,
-                config.RPN_ANCHOR_STRIDE)
+                config.RPN_ANCHOR_SCALES,  # anchor size [8, 16, 32, 64, 128]
+                config.RPN_ANCHOR_RATIOS,  # [0.5, 1, 2]
+                backbone_shapes,           #[32, 16, 8, 4, 2]
+                config.BACKBONE_STRIDES,   # [4, 8, 16, 32, 64] --> backbone_stride x backbone_shape => image_shape
+                config.RPN_ANCHOR_STRIDE)  # 1
             # Keep a copy of the latest anchors in pixel coordinates because
             # it's used in inspect_model notebooks.
             # TODO: Remove this after the notebook are refactored to not use it

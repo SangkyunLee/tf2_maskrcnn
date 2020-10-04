@@ -25,11 +25,7 @@ class fpn_model(KM.Model):
         super(fpn_model, self).__init__(**kwargs) 
         self.config = config
         
-    # def build(self, input_shape):
-    #     config = self.config
-        # input_image = KL.Input(shape= config.IMAGE_SHAPE)    
-        # _, C2, C3, C4, C5 = mutil.resnet_graph(input_image, config.BACKBONE,
-        #                                   stage5=True, train_bn=config.TRAIN_BN)
+
         
         input_image = KL.Input(shape = tuple(config.IMAGE_SHAPE))
         self.resnet = resnet_graph(input_image, config.BACKBONE,

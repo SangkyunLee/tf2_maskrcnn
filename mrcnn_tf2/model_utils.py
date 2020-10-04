@@ -20,6 +20,8 @@ class BatchNorm(KL.BatchNormalization):
     so this layer is often frozen (via setting in Config class) and functions
     as linear layer.
     """
+    def __init__(self,**kwargs):
+        super(BatchNorm, self).__init__(**kwargs) 
     def call(self, inputs, training=True):
         """
         Note about training values:
@@ -29,294 +31,6 @@ class BatchNorm(KL.BatchNormalization):
         """
         return super(self.__class__, self).call(inputs, training=training)
 
-# # def identity_block(input_tensor, kernel_size, filters, stage, block,
-# #                     use_bias=True, train_bn=True):
-# #     """The identity_block is the block that has no conv layer at shortcut
-# #     # Arguments
-# #         input_tensor: input tensor
-# #         kernel_size: default 3, the kernel size of middle conv layer at main path
-# #         filters: list of integers, the nb_filters of 3 conv layer at main path
-# #         stage: integer, current stage label, used for generating layer names
-# #         block: 'a','b'..., current block label, used for generating layer names
-# #         use_bias: Boolean. To use or not use a bias in conv layers.
-# #         train_bn: Boolean. Train or freeze Batch Norm layers
-# #     """
-# #     nb_filter1, nb_filter2, nb_filter3 = filters
-# #     conv_name_base = 'res' + str(stage) + block + '_branch'
-# #     bn_name_base = 'bn' + str(stage) + block + '_branch'
-
-# #     x = KL.Conv2D(nb_filter1, (1, 1), name=conv_name_base + '2a',
-# #                   use_bias=use_bias)(input_tensor)
-# #     x = BatchNorm(name=bn_name_base + '2a')(x, training=train_bn)
-# #     x = KL.Activation('relu')(x)
-
-# #     x = KL.Conv2D(nb_filter2, (kernel_size, kernel_size), padding='same',
-# #                   name=conv_name_base + '2b', use_bias=use_bias)(x)
-# #     x = BatchNorm(name=bn_name_base + '2b')(x, training=train_bn)
-# #     x = KL.Activation('relu')(x)
-
-# #     x = KL.Conv2D(nb_filter3, (1, 1), name=conv_name_base + '2c',
-# #                   use_bias=use_bias)(x)
-# #     x = BatchNorm(name=bn_name_base + '2c')(x, training=train_bn)
-
-# #     x = KL.Add()([x, input_tensor])
-# #     x = KL.Activation('relu', name='res' + str(stage) + block + '_out')(x)
-# #     return x
-
-
-
-
-# def identity_block(input_tensor,kernel_size, filters, stage, block,
-#                     use_bias=True, train_bn=True):
-#     """The identity_block is the block that has no conv layer at shortcut
-#     # Arguments
-#         input_tensor: input tensor
-#         kernel_size: default 3, the kernel size of middle conv layer at main path
-#         filters: list of integers, the nb_filters of 3 conv layer at main path
-#         stage: integer, current stage label, used for generating layer names
-#         block: 'a','b'..., current block label, used for generating layer names
-#         use_bias: Boolean. To use or not use a bias in conv layers.
-#         train_bn: Boolean. Train or freeze Batch Norm layers
-#     """
-#     nb_filter1, nb_filter2, nb_filter3 = filters
-#     conv_name_base = 'res' + str(stage) + block + '_branch'
-#     bn_name_base = 'bn' + str(stage) + block + '_branch'
-    
-#     layer =[]
-    
-
-#     x = KL.Conv2D(nb_filter1, (1, 1), name=conv_name_base + '2a',
-#                   use_bias=use_bias)(input_tensor)
-#     layer.append(x)
-#     x = BatchNorm(name=bn_name_base + '2a')(x, training=train_bn)
-#     layer.append(x)
-    
-#     x = KL.Activation('relu')(x)
-#     layer.append(x)
-    
-#     x = KL.Conv2D(nb_filter2, (kernel_size, kernel_size), padding='same',
-#                   name=conv_name_base + '2b', use_bias=use_bias)(x)
-#     layer.append(x)
-    
-#     x = BatchNorm(name=bn_name_base + '2b')(x, training=train_bn)
-#     layer.append(x)
-    
-#     x = KL.Activation('relu')(x)
-#     layer.append(x)
-    
-#     x = KL.Conv2D(nb_filter3, (1, 1), name=conv_name_base + '2c',
-#                   use_bias=use_bias)(x)
-#     layer.append(x)
-    
-#     x = BatchNorm(name=bn_name_base + '2c')(x, training=train_bn)
-#     layer.append(x)
-    
-    
-#     x = KL.Add()([x, input_tensor])
-#     layer.append(x)
-#     x = KL.Activation('relu', name='res' + str(stage) + block + '_out')(x)
-#     layer.append(x)
-#     return layer
-
-
-# def conv_block(input_tensor,kernel_size, filters, stage, block,
-#                 strides=(2, 2), use_bias=True, train_bn=True):
-#     """conv_block is the block that has a conv layer at shortcut
-#     # Arguments
-#         input_tensor: input tensor
-#         kernel_size: default 3, the kernel size of middle conv layer at main path
-#         filters: list of integers, the nb_filters of 3 conv layer at main path
-#         stage: integer, current stage label, used for generating layer names
-#         block: 'a','b'..., current block label, used for generating layer names
-#         use_bias: Boolean. To use or not use a bias in conv layers.
-#         train_bn: Boolean. Train or freeze Batch Norm layers
-#     Note that from stage 3, the first conv layer at main path is with subsample=(2,2)
-#     And the shortcut should have subsample=(2,2) as well
-#     """
-
-#     nb_filter1, nb_filter2, nb_filter3 = filters
-#     conv_name_base = 'res' + str(stage) + block + '_branch'
-#     bn_name_base = 'bn' + str(stage) + block + '_branch'
-    
-    
-#     layers=[]
-
-#     x = KL.Conv2D(nb_filter1, (1, 1), strides=strides,
-#                   name=conv_name_base + '2a', use_bias=use_bias)(input_tensor)
-#     layers.append(x)
-#     x = BatchNorm(name=bn_name_base + '2a')(x, training=train_bn)
-#     layers.append(x)
-#     x = KL.Activation('relu')(x)
-#     layers.append(x)
-
-#     x = KL.Conv2D(nb_filter2, (kernel_size, kernel_size), padding='same',
-#                   name=conv_name_base + '2b', use_bias=use_bias)(x)
-#     layers.append(x)
-#     x = BatchNorm(name=bn_name_base + '2b')(x, training=train_bn)
-#     layers.append(x)
-#     x = KL.Activation('relu')(x)
-#     layers.append(x)
-#     x = KL.Conv2D(nb_filter3, (1, 1), name=conv_name_base +
-#                   '2c', use_bias=use_bias)(x)
-#     layers.append(x)
-#     x = BatchNorm(name=bn_name_base + '2c')(x, training=train_bn)
-#     layers.append(x)
-    
-#     shortcut = KL.Conv2D(nb_filter3, (1, 1), strides=strides,
-#                           name=conv_name_base + '1', use_bias=use_bias)(input_tensor)
-#     layers.append(shortcut)
-#     shortcut = BatchNorm(name=bn_name_base + '1')(shortcut, training=train_bn)
-#     layers.append(shortcut)
-    
-
-#     x = KL.Add()([x, shortcut])
-#     layers.append(x)
-#     x = KL.Activation('relu', name='res' + str(stage) + block + '_out')(x)
-#     layers.append(x)
-#     return layers
-# # def conv_block(input_tensor, kernel_size, filters, stage, block,
-# #                 strides=(2, 2), use_bias=True, train_bn=True):
-# #     """conv_block is the block that has a conv layer at shortcut
-# #     # Arguments
-# #         input_tensor: input tensor
-# #         kernel_size: default 3, the kernel size of middle conv layer at main path
-# #         filters: list of integers, the nb_filters of 3 conv layer at main path
-# #         stage: integer, current stage label, used for generating layer names
-# #         block: 'a','b'..., current block label, used for generating layer names
-# #         use_bias: Boolean. To use or not use a bias in conv layers.
-# #         train_bn: Boolean. Train or freeze Batch Norm layers
-# #     Note that from stage 3, the first conv layer at main path is with subsample=(2,2)
-# #     And the shortcut should have subsample=(2,2) as well
-# #     """
-# #     nb_filter1, nb_filter2, nb_filter3 = filters
-# #     conv_name_base = 'res' + str(stage) + block + '_branch'
-# #     bn_name_base = 'bn' + str(stage) + block + '_branch'
-
-# #     x = KL.Conv2D(nb_filter1, (1, 1), strides=strides,
-# #                   name=conv_name_base + '2a', use_bias=use_bias)(input_tensor)
-# #     x = BatchNorm(name=bn_name_base + '2a')(x, training=train_bn)
-# #     x = KL.Activation('relu')(x)
-
-# #     x = KL.Conv2D(nb_filter2, (kernel_size, kernel_size), padding='same',
-# #                   name=conv_name_base + '2b', use_bias=use_bias)(x)
-# #     x = BatchNorm(name=bn_name_base + '2b')(x, training=train_bn)
-# #     x = KL.Activation('relu')(x)
-
-# #     x = KL.Conv2D(nb_filter3, (1, 1), name=conv_name_base +
-# #                   '2c', use_bias=use_bias)(x)
-# #     x = BatchNorm(name=bn_name_base + '2c')(x, training=train_bn)
-
-# #     shortcut = KL.Conv2D(nb_filter3, (1, 1), strides=strides,
-# #                           name=conv_name_base + '1', use_bias=use_bias)(input_tensor)
-# #     shortcut = BatchNorm(name=bn_name_base + '1')(shortcut, training=train_bn)
-
-# #     x = KL.Add()([x, shortcut])
-# #     x = KL.Activation('relu', name='res' + str(stage) + block + '_out')(x)
-# #     return x
-    
-
-
-
-        
-# def resnet_graph(input_image, architecture, stage5=False, train_bn=True):
-#     """Build a ResNet graph.
-#         architecture: Can be resnet50 or resnet101
-#         stage5: Boolean. If False, stage5 of the network is not created
-#         train_bn: Boolean. Train or freeze Batch Norm layers
-#     """
-#     assert architecture in ["resnet50", "resnet101"]
-    
-#     layers =[]
-#     # Stage 1
-#     x = KL.ZeroPadding2D((3, 3))(input_image)
-#     layers.append(x)
-#     x = KL.Conv2D(64, (7, 7), strides=(2, 2), name='conv1', use_bias=True)(x)
-#     layers.append(x)
-#     x = BatchNorm(name='bn_conv1')(x, training=train_bn)
-#     layers.append(x)
-#     x = KL.Activation('relu')(x)
-#     layers.append(x)
-#     C1 = x = KL.MaxPooling2D((3, 3), strides=(2, 2), padding="same")(x)
-#     layers.append(x)
-#     # Stage 2
-#     x = conv_block(x, 3, [64, 64, 256], stage=2, block='a', strides=(1, 1), train_bn=train_bn)
-#     layers.extend(x)    
-#     x = identity_block(x[-1], 3, [64, 64, 256], stage=2, block='b', train_bn=train_bn)
-#     layers.extend(x)
-#     x = identity_block(x[-1], 3, [64, 64, 256], stage=2, block='c', train_bn=train_bn)
-#     layers.extend(x)
-#     C2 = x[-1]
-#     # Stage 3
-#     x = conv_block(x[-1], 3, [128, 128, 512], stage=3, block='a', train_bn=train_bn)
-#     layers.extend(x)
-#     x = identity_block(x[-1], 3, [128, 128, 512], stage=3, block='b', train_bn=train_bn)
-#     layers.extend(x)
-#     x = identity_block(x[-1], 3, [128, 128, 512], stage=3, block='c', train_bn=train_bn)
-#     layers.extend(x)
-#     x = identity_block(x[-1], 3, [128, 128, 512], stage=3, block='d', train_bn=train_bn)
-#     layers.extend(x)
-#     C3 = x[-1]
-#     # Stage 4
-#     x = conv_block(x[-1], 3, [256, 256, 1024], stage=4, block='a', train_bn=train_bn)
-#     layers.extend(x)
-#     block_count = {"resnet50": 5, "resnet101": 22}[architecture]
-#     for i in range(block_count):
-#         x = identity_block(x[-1], 3, [256, 256, 1024], stage=4, block=chr(98 + i), train_bn=train_bn)
-#         layers.extend(x)
-        
-#     C4 = x[-1]
-#     # Stage 5
-#     if stage5:
-#         x = conv_block(x[-1], 3, [512, 512, 2048], stage=5, block='a', train_bn=train_bn)
-#         layers.extend(x)
-#         x = identity_block(x[-1], 3, [512, 512, 2048], stage=5, block='b', train_bn=train_bn)
-#         layers.extend(x)
-#         x = identity_block(x[-1], 3, [512, 512, 2048], stage=5, block='c', train_bn=train_bn)
-#         layers.extend(x)
-#         C5= x[-1]
-#     else:
-#         C5 = None
-#     out=[C1, C2, C3, C4, C5]    
-#     return out,layers
-
-
-# def resnet_graph(input_image, architecture, stage5=False, train_bn=True):
-#     """Build a ResNet graph.
-#         architecture: Can be resnet50 or resnet101
-#         stage5: Boolean. If False, stage5 of the network is not created
-#         train_bn: Boolean. Train or freeze Batch Norm layers
-#     """
-#     assert architecture in ["resnet50", "resnet101"]
-#     # Stage 1
-#     x = KL.ZeroPadding2D((3, 3))(input_image)
-#     #x = KL.ZeroPadding2D((3, 3), input_shape = input_shape)
-#     x = KL.Conv2D(64, (7, 7), strides=(2, 2), name='conv1', use_bias=True)(x)
-#     x = BatchNorm(name='bn_conv1')(x, training=train_bn)
-#     x = KL.Activation('relu')(x)
-#     C1 = x = KL.MaxPooling2D((3, 3), strides=(2, 2), padding="same")(x)
-#     # Stage 2
-#     x = conv_block(x, 3, [64, 64, 256], stage=2, block='a', strides=(1, 1), train_bn=train_bn)
-#     x = identity_block(x, 3, [64, 64, 256], stage=2, block='b', train_bn=train_bn)
-#     C2 = x = identity_block(x, 3, [64, 64, 256], stage=2, block='c', train_bn=train_bn)
-#     # Stage 3
-#     x = conv_block(x, 3, [128, 128, 512], stage=3, block='a', train_bn=train_bn)
-#     x = identity_block(x, 3, [128, 128, 512], stage=3, block='b', train_bn=train_bn)
-#     x = identity_block(x, 3, [128, 128, 512], stage=3, block='c', train_bn=train_bn)
-#     C3 = x = identity_block(x, 3, [128, 128, 512], stage=3, block='d', train_bn=train_bn)
-#     # Stage 4
-#     x = conv_block(x, 3, [256, 256, 1024], stage=4, block='a', train_bn=train_bn)
-#     block_count = {"resnet50": 5, "resnet101": 22}[architecture]
-#     for i in range(block_count):
-#         x = identity_block(x, 3, [256, 256, 1024], stage=4, block=chr(98 + i), train_bn=train_bn)
-#     C4 = x
-#     # Stage 5
-#     if stage5:
-#         x = conv_block(x, 3, [512, 512, 2048], stage=5, block='a', train_bn=train_bn)
-#         x = identity_block(x, 3, [512, 512, 2048], stage=5, block='b', train_bn=train_bn)
-#         C5 = x = identity_block(x, 3, [512, 512, 2048], stage=5, block='c', train_bn=train_bn)
-#     else:
-#         C5 = None
-#     return [C1, C2, C3, C4, C5]
 
 
 ############################################################
@@ -340,38 +54,38 @@ class RPN(KM.Model):
         self.anchor_stride = anchor_stride
         self.anchors_per_location = anchors_per_location
         
-        
-    # def build(self, input_shape=None):    
         self.conv_shared = KL.Conv2D(512, (3, 3), padding='same', activation='relu',
                        strides=self.anchor_stride, name='rpn_conv_shared')
         self.conv_class = KL.Conv2D(2 * self.anchors_per_location, (1, 1), padding='valid',
                   activation='linear', name='rpn_class_raw')
-        self.softmax = KL.Activation("softmax", name="rpn_class_xxx")
+        
         self.conv_bbox = KL.Conv2D(self.anchors_per_location * 4, (1, 1), padding="valid",
                   activation='linear', name='rpn_bbox_pred')
     
     def call(self,inputs):
         shared = self.conv_shared(inputs)
+        
+        
         # Anchor Score. [batch, height, width, anchors per location * 2].
         x = self.conv_class(shared)
         
         # Reshape to [batch, anchors, 2]
         rpn_class_logits = KL.Lambda(
-            lambda t: tf.reshape(t, [tf.shape(t)[0], -1, 2]))(x)
+            lambda t: tf.reshape(t, [tf.shape(t)[0], tf.shape(t)[1]*tf.shape(t)[2]*self.anchors_per_location, 2]))(x)
         
         
         # rpn_class_logits = KL.Lambda(
         #     lambda t: tf.reshape(t, [-1, K.int_shape(t)[1]*K.int_shape(t)[2]*self.anchors_per_location, 2]))(x)
         
         # Softmax on last dimension of BG/FG.
-        rpn_probs = self.softmax(rpn_class_logits)
+        rpn_probs = KL.Activation("softmax", name="rpn_class_xxx")(rpn_class_logits)
         
         # Bounding box refinement. [batch, H, W, anchors per location * depth]
         # where depth is [x, y, log(w), log(h)]
         x = self.conv_bbox(shared)
     
         # Reshape to [batch, anchors, 4]
-        rpn_bbox = KL.Lambda(lambda t: tf.reshape(t, [tf.shape(t)[0], -1, 4]))(x)
+        rpn_bbox = KL.Lambda(lambda t: tf.reshape(t, [tf.shape(t)[0], tf.shape(t)[1]*tf.shape(t)[2]*self.anchors_per_location, 4]))(x)
         # rpn_bbox = KL.Lambda(lambda t: tf.reshape(t, [-1, K.int_shape(t)[1]*K.int_shape(t)[2]*self.anchors_per_location, 4]))(x)
         
         return [rpn_class_logits, rpn_probs, rpn_bbox]
@@ -1035,9 +749,7 @@ class fpn_mask(KM.Model):
         self.num_classes = num_classes
         self.train_bn = train_bn
         self.pool_size = pool_size
-        
-    def build(self, input_shape=None):  
-        
+    
         # ROI Pooling
         # self.roialign = PyramidROIAlign([self.pool_size, self.pool_size])
         # Conv layers

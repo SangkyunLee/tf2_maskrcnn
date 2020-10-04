@@ -1,129 +1,131 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Sun Jan 19 15:59:09 2020
+Created on Tue Mar 17 16:21:52 2020
 
-@author: cv_test
+@author: root
 """
 
 
-def conv_block(kernel_size, filters, stage, block,
-               strides=(2, 2), use_bias=True, train_bn=True):
-    """conv_block is the block that has a conv layer at shortcut
-    # Arguments
-        input_tensor: input tensor
-        kernel_size: default 3, the kernel size of middle conv layer at main path
-        filters: list of integers, the nb_filters of 3 conv layer at main path
-        stage: integer, current stage label, used for generating layer names
-        block: 'a','b'..., current block label, used for generating layer names
-        use_bias: Boolean. To use or not use a bias in conv layers.
-        train_bn: Boolean. Train or freeze Batch Norm layers
-    Note that from stage 3, the first conv layer at main path is with subsample=(2,2)
-    And the shortcut should have subsample=(2,2) as well
-    """
-    
-    # kernel_size = 3
-    # filters = [64, 64, 256]
-    # stage=2
-    # block='a'
-    # strides=(1, 1)
-    # use_bias=True
-    # train_bn=True
-    #########################
-    nb_filter1, nb_filter2, nb_filter3 = filters
-    conv_name_base = 'res' + str(stage) + block + '_branch'
-    bn_name_base = 'bn' + str(stage) + block + '_branch'
-    
-    
-    layers=[]
-    shc_layers=[]
-    x = KL.Conv2D(nb_filter1, (1, 1), strides=strides,
-                  name=conv_name_base + '2a', use_bias=use_bias)#(input_tensor)
-    layers.append(x)
-    x = BatchNorm(name=bn_name_base + '2a')#(x, training=train_bn)
-    layers.append(x)
-    x = KL.Activation('relu')#(x)
-    layers.append(x)
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Tue Mar 17 13:25:50 2020
 
-    x = KL.Conv2D(nb_filter2, (kernel_size, kernel_size), padding='same',
-                  name=conv_name_base + '2b', use_bias=use_bias) #x
-    layers.append(x)
-    x = BatchNorm(name=bn_name_base + '2b') #(x, training=train_bn)
-    layers.append(x)
-    x = KL.Activation('relu')#(x)
-    layers.append(x)
-    x = KL.Conv2D(nb_filter3, (1, 1), name=conv_name_base +
-                  '2c', use_bias=use_bias)#(x)
-    layers.append(x)
-    x = BatchNorm(name=bn_name_base + '2c')#(x, training=train_bn)
-    layers.append(x)
-    
-    shortcut = KL.Conv2D(nb_filter3, (1, 1), strides=strides,
-                         name=conv_name_base + '1', use_bias=use_bias)#(input_tensor)
-    shc_layers.append(shortcut)
-    shortcut = BatchNorm(name=bn_name_base + '1')#(shortcut, training=train_bn)
-    shc_layers.append(shortcut)
-    
-    olayer = []
-    x = KL.Add()#([x, shortcut])
-    olayer.append(x)
-    x = KL.Activation('relu', name='res' + str(stage) + block + '_out')#(x)
-    olayer.append(x)
-    return layers, shc_layers, olayer
+@author: root
+"""
+# find common prefix
+
+
+input=["abc","abcef","abce"]
+
+def find_pre(input):
+    minlen = min(map(len,input))
+    out =''
+    for i in range(minlen):
+        p=input[0][i]
+        for j in range(1, len(input)):
+            if p!=input[j][i]:
+                return out
+            if j==len(input)-1 and p == input[j][i]:
+                out +=p
+    return out
+
+find_pre(input)
+
+
+#find next permutation
 
 
 
-def identity_block(kernel_size, filters, stage, block,
-                   use_bias=True, train_bn=True):
-    """The identity_block is the block that has no conv layer at shortcut
-    # Arguments
-        input_tensor: input tensor
-        kernel_size: default 3, the kernel size of middle conv layer at main path
-        filters: list of integers, the nb_filters of 3 conv layer at main path
-        stage: integer, current stage label, used for generating layer names
-        block: 'a','b'..., current block label, used for generating layer names
-        use_bias: Boolean. To use or not use a bias in conv layers.
-        train_bn: Boolean. Train or freeze Batch Norm layers
-    """
-    nb_filter1, nb_filter2, nb_filter3 = filters
-    conv_name_base = 'res' + str(stage) + block + '_branch'
-    bn_name_base = 'bn' + str(stage) + block + '_branch'
     
-    layer =[]
+def findp2(x):
+    ix=0
+    while ix<len(x)-1:
+        if x[ix]<x[ix+1]:
+            ix +=1
+        else:
+            break
+    
+    if ix >len(x)-2 :
+        return ix
+    else:
+        lenf = len(x[:ix+1])
+        ix2= findp2(x[ix+1:])
+        if ix2==0:
+            return ix2+lenf-1 # since index remain in the x[:ix+1]
+        else:
+            return ix2+lenf   # since index go over in x[ix+1:]
+def nextperm2(x):
+    ix =findp2(x)
+    if ix ==0:
+        out =x[::-1]
+    else:
+        out = x[:]
+        out[ix],out[ix-1]=out[ix-1], out[ix]
+    return out    
+    
     
 
-    x = KL.Conv2D(nb_filter1, (1, 1), name=conv_name_base + '2a',
-                  use_bias=use_bias)#(input_tensor)
-    layer.append(x)
-    x = BatchNorm(name=bn_name_base + '2a')#(x, training=train_bn)
-    layer.append(x)
-    
-    x = KL.Activation('relu')#(x)
-    layer.append(x)
-    
-    x = KL.Conv2D(nb_filter2, (kernel_size, kernel_size), padding='same',
-                  name=conv_name_base + '2b', use_bias=use_bias)#(x)
-    layer.append(x)
-    
-    x = BatchNorm(name=bn_name_base + '2b')#(x, training=train_bn)
-    layer.append(x)
-    
-    x = KL.Activation('relu')#(x)
-    layer.append(x)
-    
-    x = KL.Conv2D(nb_filter3, (1, 1), name=conv_name_base + '2c',
-                  use_bias=use_bias)#(x)
-    layer.append(x)
-    
-    x = BatchNorm(name=bn_name_base + '2c')#(x, training=train_bn)
-    layer.append(x)
-    
-    olayer =[]
-    x = KL.Add()#([x, input_tensor])
-    olayer.append(x)
-    x = KL.Activation('relu', name='res' + str(stage) + block + '_out')#(x)
-    olayer.append(x)
-    return layer, olayer
+
+x ='456321'#'456123'#'45612'#'123'#'321'#'312'#'321'#
+x = list(x)
+ix = findp2(x)
+nextperm2(x)
 
 
- x=conv_block( 3, [256, 256, 1024], stage=4, block='a', train_bn=train_bn)
+############## rotating image
+
+x=[
+  [ 5, 1, 9,11],
+  [ 2, 4, 8,10],
+  [13, 3, 6, 7],
+  [15,14,12,16]
+]
+
+
+
+        
+        
+def fill(x,ci,cj,cval, N):
+    ni,nj =cj, (N-1)-ci
+    
+    if x[ni][nj]>0:
+        nval=x[ni][nj]
+        x[ni][nj]=-1*cval
+        fill(x,ni,nj,nval, N )
+    
+        
+def goover(x):
+    N = len(x)
+    for i in range(N):
+        for j in range(N):            
+            fill(x,i,j,x[i][j],N)
+               
+            
+goover(x) 
+
+
+#####most common words
+x = "Bob hit a ball, the hit BALL flew far after it was hit."
+
+x = x.split()
+
+def rem_punc(x):
+    punc = list("!?',;.")
+    x = list(x)
+    out=''
+    for xi in x:
+        if xi not in punc:
+            out+=xi.lower()
+    return out
+x1 =list(map(rem_punc,x))
+
+ux1 = set(x1)
+outcount = [0]*len(ux1)
+banned=["hit"]
+for k,xi in enumerate(ux1):
+    if xi is not banned:
+        outcount[k]=x1.count(xi)
+            
+outcount.argmax()

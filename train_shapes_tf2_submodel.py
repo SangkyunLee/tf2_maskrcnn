@@ -237,80 +237,6 @@ for image_id in image_ids:
     mask, class_ids = dataset_train.load_mask(image_id)
     visualize.display_top_masks(image, mask, class_ids, dataset_train.class_names)
 
-
-
-############################ training test -1
-
-from mrcnn_tf2 import model_loss as ML
-@tf.function
-def compute_loss(model, inputs):
-    # input_image = inputs[0]
-    input_image_meta = inputs[1]
-    input_rpn_match = inputs[5]
-    input_rpn_bbox = inputs[6]
-    
-    # input_gt_class_ids = inputs[2]
-    # input_gt_boxes = inputs[3]
-    # input_gt_masks = inputs[4]
-    
-    config = model.get_config()
-    
-    out = model(inputs)
-    
-    rpn_class_logits = out[0]
-    rpn_class = out[1]
-    rpn_bbox = out[2]
-    
-    
-    
-    mrcnn_class_logits = out[3]
-    mrcnn_class = out[4]  
-    mrcnn_bbox = out[5]
-    # 
-    
-    target_class_ids = out[6]
-    target_bbox = out[7]
-    target_mask = out[8]
-    mrcnn_mask = out[9]
-    
-
-    
-    rpn_class_loss  = ML.rpn_class_loss_graph(input_rpn_match, rpn_class_logits)
-    rpn_bbox_loss = ML.rpn_bbox_loss_graph(config, input_rpn_bbox, input_rpn_match, rpn_bbox)
-    
-    active_class_ids =  mutil.parse_image_meta_graph(input_image_meta)['active_class_ids']
-    class_loss = ML.mrcnn_class_loss_graph(target_class_ids, mrcnn_class_logits, active_class_ids)  
-    
-     
-    bbox_loss = ML.mrcnn_bbox_loss_graph(target_bbox, target_class_ids, mrcnn_bbox)         
-    mask_loss = ML.mrcnn_mask_loss_graph(target_mask, target_class_ids, mrcnn_mask)
-    
-    
-    
-    f=tf.keras.regularizers.l2
-    weight = config.WEIGHT_DECAY
-        
-    reg_losses =[f(weight)(w)/tf.cast(tf.size(w),tf.float32)
-                  for w in  model.trainable_weights
-                  if 'gamma' not in w.name and 'beta' not in w.name]
-    
-    main_loss =  rpn_class_loss + rpn_bbox_loss +class_loss + bbox_loss + mask_loss 
-    main_loss += tf.add_n(reg_losses)
-    
-    return main_loss        
-    
-
-@tf.function
-def compute_apply_gradients(model, x, optimizer):
-  with tf.GradientTape() as tape:
-    loss = compute_loss(model, x)
-  gradients = tape.gradient(loss, model.trainable_variables)
-  optimizer.apply_gradients(zip(gradients, model.trainable_variables))
-  return loss
-  
-
-
-
 def train_generator():
     from mrcnn_tf2 import data
     image_index=0
@@ -323,9 +249,108 @@ def train_generator():
         if image_index>=len(dataset_train.image_ids)-1:
             break
 
+def val_generator():
+    from mrcnn_tf2 import data
+    image_index=0
+    while True:
+        inputs, outputs, image_index =data.gen_inputs(dataset_val, model.config, image_index, shuffle=True,                            
+                        augmentation=None,                            
+                        batch_size=model.config.BATCH_SIZE,                            
+                        no_augmentation_sources=None)
+        yield (inputs, outputs)
+        if image_index>=len(dataset_train.image_ids)-1:
+            break
+
 output_types=((tf.float32, tf.float32, tf.int32, tf.float32, tf.int32, tf.float32, tf.bool),())    
-dataset = tf.data.Dataset.from_generator(generator = train_generator,
+train_data = tf.data.Dataset.from_generator(generator = train_generator,
                                       output_types = output_types) 
+
+val_data = tf.data.Dataset.from_generator(generator = val_generator,
+                                      output_types = output_types) 
+
+############################ training test -1
+
+from mrcnn_tf2 import model_loss as ML
+@tf.function
+def compute_mainloss(model, inputs):
+    # input_image = inputs[0]
+    input_image_meta = inputs[1]
+    input_rpn_match = inputs[5]
+    input_rpn_bbox = inputs[6]
+    
+    # input_gt_class_ids = inputs[2]
+    # input_gt_boxes = inputs[3]
+    # input_gt_masks = inputs[4]
+    
+    config = model.get_config()
+    
+    out = model(inputs[:5])
+    
+    rpn_class_logits = out[0]
+    # rpn_class = out[1]
+    rpn_bbox = out[2]
+    rpn_class_loss  = ML.rpn_class_loss_graph(input_rpn_match, rpn_class_logits)
+    rpn_bbox_loss = ML.rpn_bbox_loss_graph(config, input_rpn_bbox, input_rpn_match, rpn_bbox)
+    
+    # main_loss =  rpn_class_loss + rpn_bbox_loss 
+    # return main_loss, rpn_class_loss, rpn_bbox_loss
+    
+    
+    ####################################
+    mrcnn_class_logits = out[3]
+    # mrcnn_class = out[4]  
+    mrcnn_bbox = out[5]
+
+    
+    target_class_ids = out[6]
+    target_bbox = out[7]
+    target_mask = out[8]
+    mrcnn_mask = out[9]
+    
+
+    
+    
+    active_class_ids =  mutil.parse_image_meta_graph(input_image_meta)['active_class_ids']
+    class_loss = ML.mrcnn_class_loss_graph(target_class_ids, mrcnn_class_logits, active_class_ids)      
+     
+    bbox_loss = ML.mrcnn_bbox_loss_graph(target_bbox, target_class_ids, mrcnn_bbox)         
+    mask_loss = ML.mrcnn_mask_loss_graph(target_mask, target_class_ids, mrcnn_mask)    
+  
+    main_loss =  rpn_class_loss + rpn_bbox_loss+class_loss + bbox_loss + mask_loss
+    return main_loss, rpn_class_loss, rpn_bbox_loss,class_loss, bbox_loss, mask_loss 
+
+
+
+@tf.function
+def compute_regloss(model):
+    f=tf.keras.regularizers.l2
+    weight = config.WEIGHT_DECAY
+        
+    reg_losses =[f(weight)(w)/tf.cast(tf.size(w),tf.float32)
+                  for w in  model.trainable_weights
+                  if 'gamma' not in w.name and 'beta' not in w.name]
+    
+    
+    return tf.add_n(reg_losses)
+    
+        
+        
+
+# @tf.function
+def compute_apply_gradients(model, inputs, optimizer):
+  with tf.GradientTape() as tape:
+    losses = compute_mainloss(model, inputs)
+    regloss = compute_regloss(model)
+    loss = losses[0]+regloss
+  gradients = tape.gradient(loss, model.trainable_variables)
+  optimizer.apply_gradients(zip(gradients, model.trainable_variables))
+  return loss
+  
+
+
+
+
+
 
 layers='heads'
 
@@ -355,26 +380,51 @@ model = modellib.MaskRCNN(mode="training", config=config,
 inputs_shape =model._get_inputs_shape()
 model.build(input_shape = inputs_shape)
 
-epochs=50
+# layers_sel='(mrcnn\\_.*)|(rpn\\_.*)'
+
+
+epochs=10
 learning_rate = config.LEARNING_RATE
 momentum =  config.LEARNING_MOMENTUM
 optimizer = tf.keras.optimizers.SGD(lr=learning_rate, momentum=momentum,
                                     clipnorm=config.GRADIENT_CLIP_NORM)
 
 losses=[]
+val_losses=[]
 for epoch in range(epochs):
-    for step, inputs_ in enumerate(dataset):
+    # for step, inputs_ in enumerate(train_data):
+    
+    for step, inputs_ in enumerate(train_data):    
+        # inputs_ = next(iter(train_data))
         
-        # inputs_ = next(iter(dataset))
+        val_inputs_ = next(iter(val_data))
         inputs = inputs_[0]
+        val_inputs = val_inputs_[0]
         if step==0 and epoch ==0:
             # ypred = model(inputs)                  
             model.set_trainable(layers_sel)  
-            mutil.load_weights(model.fpn.resnet,'./mask_rcnn_coco.h5',by_name = True)
+            mutil.load_weights(model.fpn.resnet,'./model_file/mask_rcnn_coco.h5',by_name = True)
+            mutil.load_weights(model.fpn,'./model_file/mask_rcnn_coco.h5',by_name = True)
         
         loss = compute_apply_gradients(model, inputs, optimizer)
-        print('epoch:{}. step {},  loss={}'.format(epoch, step,loss))
+        #val_loss,rpn_class_loss, rpn_bbox_loss,class_loss, bbox_loss, mask_loss= compute_mainloss(model,val_inputs)
+        val_loss= compute_mainloss(model,val_inputs)
+        print('epoch:{}. step {},  loss={:.3},{:.3}'.format(epoch, step,loss, val_loss[0]))
+        print('rpnclass:{:.3},rpn_bbox:{:.3}'.format(val_loss[1], val_loss[2]))
+        # print('rpnclass:{},rpn_bbox:{},class:{},bbox:{},mask:{}'.format(rpn_class_loss, rpn_bbox_loss,class_loss, bbox_loss, mask_loss))
         losses.append(loss)
+        val_losses.append(val_loss)
+  
+# plot losses      
+v= [ x[0] for x in val_losses]
+
+plt.plot(v,label='validdation loss')
+plt.plot(losses, label ='training loss')
+plt.xlim(0,2000)
+plt.ylim(0,2)
+plt.legend()
+#####
+
 
 
 epochs=50
@@ -383,25 +433,40 @@ learning_rate = config.LEARNING_RATE/10
 momentum =  config.LEARNING_MOMENTUM
 optimizer = tf.keras.optimizers.SGD(lr=learning_rate, momentum=momentum,
                                     clipnorm=config.GRADIENT_CLIP_NORM)
-losses=[]
+losses2=[]
+val_losses2=[]
 for epoch in range(epochs):
-    for step, inputs_ in enumerate(dataset):
+    # for step, inputs_ in enumerate(train_data):
+    
+    for step, inputs_ in enumerate(train_data):    
+        # inputs_ = next(iter(train_data))
         
-        # inputs_ = next(iter(dataset))
+        val_inputs_ = next(iter(val_data))
         inputs = inputs_[0]
+        val_inputs = val_inputs_[0]
         
         loss = compute_apply_gradients(model, inputs, optimizer)
-        print('epoch:{}. step {},  loss={}'.format(epoch, step,loss))
-        losses.append(loss)
+        #val_loss,rpn_class_loss, rpn_bbox_loss,class_loss, bbox_loss, mask_loss= compute_mainloss(model,val_inputs)
+        val_loss= compute_mainloss(model,val_inputs)
+        print('epoch:{}. step {},  loss={:.3},{:.3}'.format(epoch, step,loss, val_loss[0]))
+        print('rpnclass:{:.3},rpn_bbox:{:.3}'.format(val_loss[1], val_loss[2]))
+        # print('rpnclass:{},rpn_bbox:{},class:{},bbox:{},mask:{}'.format(rpn_class_loss, rpn_bbox_loss,class_loss, bbox_loss, mask_loss))
+        losses2.append(loss)
+        val_losses2.append(val_loss)
 
-# model.save_weights('smodel-all.h5')
-# model.fpn.save_weights('smodel-fpn.h5')
-# model.rpn.save_weights('smodel-rpn.h5')
-# model.fpn_clf.save_weights('smodel-fpn_clf.h5')
-# model.fpn_mask.save_weights('smodel-fpn_mask.h5')
 
- # model.save_weights('smodel-all-test',save_format='tf')
- # model.load_weights('smodel-all-test')
+# plot losses      
+v= [ x[0] for x in val_losses2]
+
+plt.plot(v,label='validdation loss')
+plt.plot(losses2, label ='training loss')
+plt.xlim(0,2000)
+plt.ylim(0,2)
+plt.legend()
+#####
+
+ # model.save_weights('./model_file/smodel-all-test',save_format='tf')
+ # model.load_weights('./model_file/smodel-all-test')
 
  
 out = model(inputs)
@@ -430,7 +495,7 @@ tmodel = modellib.MaskRCNN(mode="inference",
                           model_dir=MODEL_DIR)
 inputs_shape =tmodel._get_inputs_shape()
 tmodel.build(input_shape = inputs_shape)
-tmodel.load_weights('smodel-all-test')
+tmodel.load_weights('./model_file/smodel-all-test')
 
 
 from mrcnn_tf2 import data
@@ -440,7 +505,7 @@ original_image, image_meta, gt_class_id, gt_bbox, gt_mask =\
                             image_id, use_mini_mask=False)
     
 
-results = tmodel.detect([original_image])
+tresults = tmodel.detect([original_image])
 
 
 
@@ -458,6 +523,8 @@ def get_ax(rows=1, cols=1, size=8):
     """
     _, ax = plt.subplots(rows, cols, figsize=(size*cols, size*rows))
     return ax
-r = results[0]
-visualize.display_instances(original_image, r['rois'], r['masks'], r['class_ids'], 
-                            dataset_val.class_names, r['scores'], ax=get_ax())
+
+idx=[0,1,2]
+r = tresults[0]
+visualize.display_instances(original_image, r['rois'][idx], r['masks'][:,:,idx], r['class_ids'][idx], 
+                            dataset_val.class_names, r['scores'][idx], ax=get_ax())
